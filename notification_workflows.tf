@@ -57,15 +57,34 @@ resource "newrelic_workflow" "pagerduty_workflow" {
     name = "Filter-name"
     type = "FILTER"
 
-    predicate {
-      attribute = "accumulations.tag.${var.newrelic_alert_tag}"
-      operator  = "EXACTLY_MATCHES"
-      values    = ["true"]
+    dynamic "predicate" {
+      for_each = length(var.newrelic_alert_tag_values) > 0 ? [1] : []
+      content {
+        attribute = "accumulations.tag.${var.newrelic_alert_tag_name}"
+        operator  = "EXACTLY_MATCHES"
+        values    = var.newrelic_alert_tag_values
+      }
+    }
+
+    dynamic "predicate" {
+      for_each = length(var.newrelic_alert_policy_ids) > 0 ? [1] : []
+      content {
+        attribute = "labels.policyIds"
+        operator  = "EXACTLY_MATCHES"
+        values    = var.newrelic_alert_policy_ids
+      }
     }
   }
 
   destination {
     channel_id = newrelic_notification_channel.pagerduty_channel.id
+  }
+
+  lifecycle {
+    precondition {
+      condition     = length(var.newrelic_alert_tag_values) > 0 || length(var.newrelic_alert_policy_ids) > 0
+      error_message = "At least one of newrelic_alert_tag_values or newrelic_alert_policy_ids must be non-empty."
+    }
   }
 }
 
